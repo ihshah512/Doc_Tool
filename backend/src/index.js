@@ -28,8 +28,11 @@ app.use('/api/merge', mergeRoutes);
 app.use('/api/image', imageRoutes);
 app.use('/api/payment', paymentRoutes);
 
+// Root route (Render health check)
+app.get('/', (req, res) => res.json({ status: 'ok', message: 'DocTools API is running' }));
+
 // Health check
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'DocTools API is running' }));
 
 app.listen(PORT, () => {
   console.log(`DocTools backend running on http://localhost:${PORT}`);
