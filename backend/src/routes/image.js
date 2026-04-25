@@ -5,7 +5,7 @@ const fs = require('fs');
 const sharp = require('sharp');
 const { uploadImage } = require('../middleware/upload');
 const { getImageResizePrice, formatPrice } = require('../services/pricing');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { verifyPayment, isConfigured } = require('../services/stripeHelper');
 
 function scheduleCleanup(...files) {
   setTimeout(() => {
@@ -28,7 +28,7 @@ router.post('/resize', uploadImage.single('file'), async (req, res) => {
   const price = getImageResizePrice();
   const { paymentIntentId } = req.body;
 
-  if (!paymentIntentId) {
+  if (isConfigured && !paymentIntentId) {
     return res.json({
       requiresPayment: true,
       price,
@@ -40,9 +40,11 @@ router.post('/resize', uploadImage.single('file'), async (req, res) => {
   }
 
   try {
-    const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    if (intent.status !== 'succeeded') {
-      return res.status(402).json({ error: 'Payment not completed' });
+    if (isConfigured) {
+      const payment = await verifyPayment(paymentIntentId);
+      if (!payment.ok) {
+        return res.status(402).json({ error: payment.error });
+      }
     }
 
     const ext = path.extname(req.file.originalname).toLowerCase().replace('.', '') || 'jpeg';

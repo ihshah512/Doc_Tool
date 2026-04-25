@@ -4,9 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const { PDFDocument } = require('pdf-lib');
 const { uploadPdf, uploadWord } = require('../middleware/upload');
-const { convertWithLibreOffice } = require('../services/libreoffice');
+const { convertFile } = require('../services/converter');
 const { getConversionPrice, formatPrice } = require('../services/pricing');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { verifyPayment, isConfigured } = require('../services/stripeHelper');
 
 // Helper: count pages in a PDF
 async function getPdfPageCount(filePath) {
@@ -29,8 +29,7 @@ router.post('/pdf-to-word', uploadPdf.single('file'), async (req, res) => {
     const pageCount = await getPdfPageCount(req.file.path);
     const price = getConversionPrice(pageCount);
 
-    if (price > 0) {
-      // Paid: require a Stripe paymentIntentId
+    if (price > 0 && isConfigured) {
       const { paymentIntentId } = req.body;
       if (!paymentIntentId) {
         return res.json({
@@ -41,15 +40,14 @@ router.post('/pdf-to-word', uploadPdf.single('file'), async (req, res) => {
           fileId: req.file.filename,
         });
       }
-      // Verify payment succeeded
-      const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      if (intent.status !== 'succeeded') {
-        return res.status(402).json({ error: 'Payment not completed' });
+      const payment = await verifyPayment(paymentIntentId);
+      if (!payment.ok) {
+        return res.status(402).json({ error: payment.error });
       }
     }
 
     const outputDir = path.dirname(req.file.path);
-    const outputPath = await convertWithLibreOffice(req.file.path, 'docx', outputDir);
+    const outputPath = await convertFile(req.file.path, 'docx', outputDir);
     scheduleCleanup(req.file.path, outputPath);
 
     res.download(outputPath, `converted_${Date.now()}.docx`, () => {
@@ -66,15 +64,14 @@ router.post('/word-to-pdf', uploadWord.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   try {
     const outputDir = path.dirname(req.file.path);
-    // Convert to PDF first to count pages
-    const pdfPath = await convertWithLibreOffice(req.file.path, 'pdf', outputDir);
+    const pdfPath = await convertFile(req.file.path, 'pdf', outputDir);
     const pageCount = await getPdfPageCount(pdfPath);
     const price = getConversionPrice(pageCount);
 
-    if (price > 0) {
+    if (price > 0 && isConfigured) {
       const { paymentIntentId } = req.body;
       if (!paymentIntentId) {
-        scheduleCleanup(pdfPath); // clean up intermediate
+        scheduleCleanup(pdfPath);
         return res.json({
           requiresPayment: true,
           pageCount,
@@ -83,9 +80,9 @@ router.post('/word-to-pdf', uploadWord.single('file'), async (req, res) => {
           fileId: req.file.filename,
         });
       }
-      const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      if (intent.status !== 'succeeded') {
-        return res.status(402).json({ error: 'Payment not completed' });
+      const payment = await verifyPayment(paymentIntentId);
+      if (!payment.ok) {
+        return res.status(402).json({ error: payment.error });
       }
     }
 
