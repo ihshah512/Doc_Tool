@@ -1,0 +1,98 @@
+# =========================
+
+# Node.js / React
+
+# =========================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build folders
+
+dist/
+build/
+.next/
+out/
+
+# Environment variables
+
+.env
+.env.*
+!.env.example
+
+# Logs
+
+logs/
+*.log
+
+# Dependency directories
+
+jspm_packages/
+
+# Optional npm cache directory
+
+.npm/
+
+# =========================
+
+# TypeScript
+
+# =========================
+
+*.tsbuildinfo
+
+# =========================
+
+# IDE / Editors
+
+# =========================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+
+# OS Files
+
+# =========================
+
+.DS_Store
+Thumbs.db
+
+# =========================
+
+# Misc
+
+# =========================
+
+coverage/
+.cache/
+tmp/
+temp/
+
+# =========================
+
+# Backend (Spring Boot / Java)
+
+# =========================
+
+target/
+*.jar
+*.war
+*.class
+
+# =========================
+
+# AWS / Secrets
+
+# =========================
+
+*.pem
+*.key
+credentials.json
+
