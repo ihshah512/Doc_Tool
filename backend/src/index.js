@@ -10,7 +10,7 @@ const imageRoutes = require('./routes/image');
 const paymentRoutes = require('./routes/payment');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5100;
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, 'uploads');

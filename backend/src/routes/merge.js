@@ -5,7 +5,7 @@ const fs = require('fs');
 const { PDFDocument } = require('pdf-lib');
 const { uploadMultiplePdf } = require('../middleware/upload');
 const { getMergePrice, formatPrice } = require('../services/pricing');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { verifyPayment, isConfigured } = require('../services/stripeHelper');
 
 async function getTotalPageCount(filePaths) {
   let total = 0;
@@ -18,6 +18,9 @@ async function getTotalPageCount(filePaths) {
 }
 
 async function mergePdfFiles(filePaths, outputPath) {
+
+  console.log('Merging PDFs:', filePaths);
+  
   const merged = await PDFDocument.create();
   for (const fp of filePaths) {
     const bytes = fs.readFileSync(fp);
@@ -49,7 +52,7 @@ router.post('/pdfs', uploadMultiplePdf.array('files', 20), async (req, res) => {
     const totalPages = await getTotalPageCount(filePaths);
     const price = getMergePrice(totalPages);
 
-    if (price > 0) {
+    if (price > 0 && isConfigured) {
       const { paymentIntentId } = req.body;
       if (!paymentIntentId) {
         return res.json({
@@ -61,9 +64,9 @@ router.post('/pdfs', uploadMultiplePdf.array('files', 20), async (req, res) => {
           fileIds: req.files.map((f) => f.filename),
         });
       }
-      const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      if (intent.status !== 'succeeded') {
-        return res.status(402).json({ error: 'Payment not completed' });
+      const payment = await verifyPayment(paymentIntentId);
+      if (!payment.ok) {
+        return res.status(402).json({ error: payment.error });
       }
     }
 
